@@ -1,14 +1,21 @@
 import requests
+import os
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import Elasticsearch
+from dotenv import load_dotenv
 from datetime import datetime
 
+load_dotenv()
+
 # Init values
-base_url = "https://your-website-here"
-client = Elasticsearch('your-elasticsearch-uri', 
-    basic_auth=('your-user', 
-        'your-password')
+base_url = os.environ.get('TARGET_WEBSITE')
+client = Elasticsearch(
+    os.environ.get('ELASTICSEARCH_URI'), 
+    basic_auth=(
+        os.environ.get('ELASTICSEARCH_USER'), 
+        os.environ.get('ELASTICSEARCH_PASSWORD')
+    )
 )
 
 # Necessary in order to bypass moderation
@@ -144,10 +151,13 @@ def begin_crawl(base_url):
 # Start crawling
 if __name__ == "__main__":
     data = begin_crawl(base_url)
+    
+    parsed_target_url = urlparse(base_url)
+    TARGET_INDEX = f'{parsed_target_url.hostname}-vectorized'
             
     # Upload each doc at a time to our database
     for x in data:
-        print(f'Indexing {x["url"]}')
-        client.index(index='webiste-content', document=x)
+        print(f'Indexing {x["url"]} in f{TARGET_INDEX}')
+        client.index(index=TARGET_INDEX, document=x)
         
     print('All done!')

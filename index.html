@@ -1,0 +1,156 @@
+<!-- query.html -->
+<html> 
+<head> 
+    <title>Query</title> 
+    <script src="https://kit.fontawesome.com/2954925439.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css" integrity="sha384-b6lVK+yci+bfDmaY1u0zE8YYJt0TZxLEAFyYSLHId4xoVvsrQu3INevFKo+Xir8e" crossorigin="anonymous"> 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <style>
+      .box:hover {
+        border-color: var(--bulma-primary-h);
+        box-shadow: 0 1em 2em 0 hsla(var(--bulma-primary-h), var(--bulma-primary-s), var(--bulma-primary-l), 0.05), 0 2em 4em 0 hsla(var(--bulma-primary-h), var(--bulma-primary-s), var(--bulma-primary-l), 0.05);
+        transform: translateY(-.5em);
+      }
+    </style>
+</head> 
+<body> 
+    <div class="container my-5"> 
+      <form id="form"> 
+      <label for="prompt" class="form-label"><strong>Search on the wiki: </strong></label> 
+        <div class="grid">
+          <div class="field">
+            <p class="control has-icons-left is-large">
+              <input
+                class="input is-large"
+                type="search"
+                placeholder="Insert your search"
+                id="prompt"
+                name="prompt"
+              />
+              <span class="icon is-small is-left">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+            </p>
+          </div>
+        </div>
+      </form> 
+      <br> 
+      <div class="mb-3"> 
+        <h6>Results:</h6>  
+        <div class="container border overflow-auto h-50 is-size-5" id="response">
+        </div>
+      </div> 
+    </div> 
+
+    <script>
+
+      const prompt = document.getElementById('prompt');
+      const form = document.getElementById('form');
+
+      prompt.addEventListener('keypress', event => { 
+        console.log(event.keyCode)
+        if (event.keyCode === 13 && !event.shiftKey) { 
+            event.preventDefault(); 
+            submit_search();
+        } 
+      });
+
+      function submit_search(event) { 
+        if (event)
+          event.preventDefault();
+            
+        // Register the prompt 
+        const prompt_value = document.querySelector('#prompt').value;
+        const dateTime = new Date(); 
+        const time = dateTime.toLocaleTimeString(); 
+
+
+        const responseDiv = document.querySelector('#response');
+        responseDiv.innerHTML = `
+          <div class="skeleton-block my-4"></div>
+          <div class="skeleton-block my-4"></div>
+          <div class="skeleton-block my-4"></div>
+          <div class="skeleton-block my-4"></div>
+          <div class="skeleton-block my-4"></div>
+          <div class="skeleton-block my-4"></div>
+        `;
+
+        prompt.disabled = true;
+        prompt.parentNode.classList.add('is-loading');
+
+        // Make the request
+        axios.post('/', { prompt: prompt_value })
+        .then(({data}) => { 
+          const {response, docs} = data;
+
+          console.log(response.split("id:"))
+
+          const ids = `${response.split("id:")[1]}`.trim().replaceAll(' ', '').split(','); 
+
+          console.log(ids);
+
+          console.log("before ordering:");
+
+          console.log(docs);
+
+          docs.sort((a,b) => {
+            // Get the index of the _id in the desiredOrder array, or Infinity if not found
+            let indexA = ids.indexOf(a._id);
+            let indexB = ids.indexOf(b._id);
+
+            // If both _ids are in the desiredOrder, sort by their index
+            if (indexA !== -1 && indexB !== -1) {
+              return indexA - indexB;
+            }
+
+            // If only one is in desiredOrder, prioritize that element
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+
+            // If neither is in desiredOrder, keep their original relative order
+            return 0;
+          });
+
+          console.log("after ordering:");
+          console.log(docs);
+
+          responseDiv.innerHTML = '';
+
+          // Add the response from the server to the response div 
+          responseDiv.insertAdjacentHTML('afterbegin', `
+            <div class="box" style="transition-duration: 294ms;
+    transition-property: border-color, box-shadow, transform;">
+              <h2 class="title is-2 mb-0">AI Insight</h2>
+              <p style="white-space: pre-line;">
+                ${response.search('_id') ? response.split("_id:")[0] : response.split("id:")[0]}
+              </p>
+            </div>
+          `);
+
+          docs.forEach(({_source}) => {
+            const {url, meta_description, title} = _source
+
+            responseDiv.insertAdjacentHTML('beforeend', `
+              <a class="is-block m-4 my-5" href=${url}>
+                  <div class="box" style="transition-duration: 294ms;
+      transition-property: border-color, box-shadow, transform;">
+                  <h4 class="title is-4">${title}</h4>
+
+                  <p>${meta_description}</p>
+                </div>
+              </a>
+            `);
+          });
+        })
+        .catch(error => console.error('Error:', error))
+        .finally(() => {
+          prompt.disabled = false;
+          prompt.parentNode.classList.remove('is-loading');
+        });
+      }
+
+      form.addEventListener('submit', submit_search);
+    </script>
+</body> 
+</html> 
